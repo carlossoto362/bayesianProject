@@ -96,8 +96,8 @@ def u2(x0, x1, sigma, tau, x, Delta, y, m1, sigma1):
     float: The utility funciton for model 2.
     """
     sqrt = (1 + (x**2) * sigma / Delta) ** (-1/2)
-    exp = np.exp(-(0.5) * ((m1**2 / sigma1) + (y**2 / Delta) - (m1 / sigma1 + x * y / np.sqrt(Delta))**2 / (1 / sigma1 + x**2 / Delta)))
-    return ((x1**2 + x0**2) / sigma + (x / tau) * sqrt * exp)
+    exp = np.exp(-(0.5) * ((m1**2 / sigma1) + (y**2 / Delta) - (m1 / sigma1 + x * y / Delta)**2 / (1 / sigma1 + x**2 / Delta)))
+    return ((x1**2 + x0**2) / sigma + (x**2 / tau) * sqrt * exp)
 
 def tau_a(tauS, yS, y, Delta):
     """
@@ -154,7 +154,7 @@ def plot_u(x0_in, x1_in, sigma_in, tau_in, tauS_in, x_in, Delta_in, yS_in, m1_in
     plt.xlabel('x')
     plt.ylabel('U(x)')
     plt.legend()  # Show legend
-    plt.savefig('{:.3f}.png'.format(Delta_in))  # Display the plot
+    plt.savefig('{:.5f}.png'.format(np.sqrt(Delta_in)))  # Display the plot
     plt.close()
 
 # Define constants for the simulation
@@ -171,13 +171,13 @@ yS = 1.5 #y star
 y0, y1 = linear_measure(np.array([x0, x1]), theta, sigma)
 
 # Loop through different values of sigmaB and plot the results
-for Delta_sqrt in np.linspace(0.4, 0.7, 6): 
+for Delta_sqrt in np.linspace(0.001, 0.02, 6): 
 
     Delta = Delta_sqrt ** 2
     sigma1 = sigma1_(x1, x0, sigma)
     m1 = m1_(x1, x0, y1, y0)
     x = np.linspace(0, xmax, 1000)
-    #plot_u(x0, x1, sigma, tau, tauS, x, Delta, yS, m1, sigma1, theta)  # Call plotting function
+    plot_u(x0, x1, sigma, tau, tauS, x, Delta, yS, m1, sigma1, theta)  # Call plotting function
     
 
 # Compute and plot optimal experiment results
