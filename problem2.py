@@ -46,7 +46,7 @@ def u1(x0, x1, sigma, tau, x):
     Returns:
     float: The result of the model function.
     """
-    return ((x1**2 + x0**2) / sigma + x / tau)
+    return ((x1**2 + x0**2) / sigma + x**2/ tau)
 
 def sigma1_(x1, x0, sigma):
     """
