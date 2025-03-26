@@ -1,0 +1,54 @@
+import numpy as np
+from scipy.stats import norm
+
+def theta_probability_model1(theta, x1, x2, x3, y1, y2, y3, sigma, tau):
+    # Compute intermediate values
+    x1_sq, x2_sq, x3_sq = x1**2, x2**2, x3**2
+    
+    # Mean and variance for first two points
+    sigma_12_sq = sigma**2 / (x1_sq + x2_sq)
+    m_12 = (x1 * y1 + x2 * y2) / (x1_sq + x2_sq)
+    
+    # Mean and variance after third point
+    num = m_12 * tau**2 + x3 * y3 * sigma_12_sq
+    den = tau**2 + sigma_12_sq * x3_sq
+    m_3_tau = num / den
+    sigma_3_tau_sq = (tau**2 + sigma_12_sq * x3_sq) / (sigma_12_sq * tau**2)
+    
+    # Compute probability density of theta
+    return norm.pdf(theta, loc=m_3_tau, scale=np.sqrt(sigma_3_tau_sq))
+
+def theta_probability_model2(theta, x1, x2, x3, y1, y2, y3, sigma, tau, psi):
+    """
+    Compute the probability density of theta under Model 2.
+    
+    Parameters:
+        theta (float): The value of theta.
+        x1, x2, x3 (float): Experimental x-values.
+        y1, y2, y3 (float): Experimental y-values.
+        sigma (float): Standard deviation of the first two measurements.
+        tau (float): Standard deviation of the third measurement.
+        psi (float): Quadratic model parameter.
+        
+    Returns:
+        float: The probability density p(theta | M2).
+    """
+    # Transform y-values for Model 2
+    y1_hat = y1 - x1**2 * psi
+    y2_hat = y2 - x2**2 * psi
+    y3_hat = y3 - x3**2 * psi
+    
+    # Compute m_{1,2} and sigma_{1,2}
+    denom_12 = x1**2 + x2**2
+    m_12 = (x1 * y1_hat + x2 * y2_hat) / denom_12
+    sigma_12_sq = sigma**2 / denom_12
+    
+    # Compute m_{3,tau} and sigma_{3,tau}
+    denom_3tau = tau**2 + sigma_12_sq * x3**2
+    m_3tau = (m_12 * tau**2 + x3 * y3_hat * sigma_12_sq) / denom_3tau
+    sigma_3tau_sq = (tau**2 + sigma_12_sq * x3**2) / (sigma_12_sq * tau**2)
+    
+    # Compute the Gaussian probability density
+    prefactor = 1 / np.sqrt(2 * np.pi * sigma_3tau_sq)
+    exponent = -0.5 * ((theta - m_3tau) ** 2 / sigma_3tau_sq)
+    return prefactor * np.exp(exponent)

@@ -1,0 +1,182 @@
+import numpy as np
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+
+def linear_(x, theta):
+    """
+    Linear function: y = theta * x.
+    
+    Parameters:
+    x (array or float): Input values.
+    theta (float): Slope parameter.
+    
+    Returns:
+    array or float: The result of the linear function.
+    """
+    return theta * x
+
+def linear_measure(x, theta, sigma):
+    """
+    Simulate measurements with noise added to the linear function.
+    
+    Parameters:
+    x (array or float): Input values.
+    theta (float): Slope parameter.
+    sigma (float): Standard deviation of the noise.
+    
+    Returns:
+    array or float: The noisy measurements.
+    """
+    try:
+        size = len(x)
+    except TypeError:
+        size = 1
+    return linear_(x, theta) + np.random.normal(loc=0, scale=np.sqrt(sigma), size=size)
+
+
+def sigma12(sigma,x1,x2):
+    return sigma**2 / (x1**2 + x2**2)
+
+def mu12(x1,x2,y1,y2):
+    return (x1 * y1 + x2 * y2) / (x1**2 + x2**2)
+    
+def mu3(x1,x2,x3,y1,y2,y3,sigma,tau):
+    num = mu12(x1,x2,y1,y2)*tau**2 + x3*y3*np.sqrt(sigma12(sigma,x1,x2))
+    den = tau**2 + sigma12(sigma,x1,x2)*x3**2
+    m_3_tau = num / den
+    return m_3_tau
+
+def sigma3(x1,x2,x3,sigma,tau):
+    num = tau**2 + sigma12(sigma,x1,x2)*x3**2
+    den = sigma12(sigma,x1,x2)*tau**2
+    return num/den
+
+def theta_probability_model1(x1, x2, x3, y1, y2, y3, sigma,tau,theta):
+    mu = mu3(x1,x2,x3,y1,y2,y3,sigma,tau)
+    sigma_ = sigma3(x1,x2,x3,sigma,tau)
+    return norm.pdf(theta, loc=mu, scale=np.sqrt(sigma_))
+
+def theta_probability_model2(x1, x2, x3, y1, y2, y3, sigma,tau,psi,theta):
+    y1_hat, y2_hat, y3_hat = y1 - psi * x1**2, y2 - psi * x2**2, y3 - psi * x3**2
+    mu = mu3(x1,x2,x3,y1_hat,y2_hat,y3_hat,sigma,tau)
+    sigma_ = sigma3(x1,x2,x3,sigma,tau)
+    return norm.pdf(theta, loc=mu, scale=np.sqrt(sigma_))
+
+
+def tau_a(tauS, yS, y, Delta):
+    """
+    Compute the adjusted time constant tau_a.
+    
+    Parameters:
+    tauS (float): Reference time constant.
+    yS (float): Reference y value.
+    y (array or float): Input y values.
+    Delta (float): Scaling factor.
+    
+    Returns:
+    array or float: The adjusted time constant values.
+    """
+    return tauS * np.exp((y - yS) ** 2 / (2 * Delta ** 2))
+
+def theta_sampling_model1(x1, x2, x3, y1, y2, y3, sigma, tau,num_samples=200,burn_in=100):
+
+    mu = mu3(x1,x2,x3,y1,y2,y3,sigma,tau)
+    sigma_ = sigma3(x1,x2,x3,sigma,tau)
+    
+    # Compute probability density of theta
+    return np.random.normal(mu, np.sqrt(sigma_),num_samples)[burn_in:]
+
+def gibbs_sampling_model2(x1, x2, x3, y1, y2, y3, sigma, tau,ys,num_samples=200,burn_in=100):
+
+    samples_theta = np.zeros(num_samples)
+    samples_psi = np.zeros(num_samples)
+
+    # Initialize psi randomly
+    psi = np.random.normal(ys, 1)
+    
+    for i in range(num_samples):
+        # Compute the transformed y-values
+        y1_hat, y2_hat, y3_hat = y1 - psi * x1**2, y2 - psi * x2**2, y3 - psi * x3**2
+        
+        mu = mu3(x1,x2,x3,y1_hat,y2_hat,y3_hat,sigma,tau)
+        sigma_ = sigma3(x1,x2,x3,sigma,tau)
+
+        theta = np.random.normal(mu, np.sqrt(sigma_))
+
+        y1_hat, y2_hat, y3_hat = y1 - theta * x1, y2 - theta * x2, y3 - theta * x3
+        x1_hat, x2_hat, x3_hat = x1**2,x2**2,x3**2
+        
+        mu = mu3(x1_hat,x2_hat,x3_hat,y1_hat,y2_hat,y3_hat,sigma,tau)
+        sigma_ = sigma3(x1_hat,x2_hat,x3_hat,sigma,tau)
+    
+        psi = np.random.normal(mu, np.sqrt(sigma_))
+
+        samples_theta[i] = theta
+        samples_psi[i] = psi
+    
+    # Remove burn-in period
+    return samples_theta[burn_in:], samples_psi[burn_in:]
+
+def logB(p_M1,p_M2):
+    return np.log(p_M2) - np.log(p_M1)
+
+def p_greater_25(logB_):
+    return len(logB_[np.abs(logB_) > 2.5])/len(logB_)
+
+def compute_proxi_volume(x1, x2, x3, y1, y2,sigma,tauS, yS,Delta):
+    volumes = []
+    y3 = linear_(x3,theta)
+    taus = tau_a(tauS, yS, y3, Delta)
+
+    for i in range(len(x3)):
+        thetas_model1 = theta_sampling_model1(x1, x2, x3[i], y1, y2, y3[i], sigma, taus[i])
+        thetas_model2,psis_model2 = gibbs_sampling_model2(x1, x2, x3[i], y1, y2, y3[i], sigma, taus[i],yS)
+        p_M1 = theta_probability_model1(x1, x2, x3[i], y1, y2, y3[i], sigma,taus[i],thetas_model1)
+        p_M2 = theta_probability_model2(x1, x2, x3[i], y1, y2, y3[i], sigma,taus[i],psis_model2,thetas_model2)
+        logBs = logB(p_M1,p_M2)
+        volumes.append(p_greater_25(logBs))
+    return np.array(volumes)
+
+x0 = 0.5
+x1 = 1
+xmax = 3
+sigma = 0.1 ** 2
+theta = 1
+tauS = sigma / 5  # tau star
+Delta = 0.1
+x2 = np.linspace(0.1, 3.1, 100)
+
+
+yS_values = np.linspace(linear_(0, theta), linear_(3, theta), 20)
+volumes = []
+
+from tqdm import tqdm
+
+for j in tqdm(range(len(yS_values))):
+    proxi_volumes = np.zeros(len(x2))
+    for i in range(3):
+        proxi_volumes += compute_proxi_volume(x0, x1, x2, linear_measure(x0, theta, sigma), linear_measure(x1, theta, sigma),sigma,tauS, yS_values[j],Delta)
+    volumes.append(proxi_volumes/len(proxi_volumes))
+
+    #plt.xlabel('x_f')
+    #plt.ylabel('proxi of volumen')
+    #plt.plot(x2,proxi_volumes/len(proxi_volumes))
+    #plt.savefig('vol_{:.3f}.png'.format(yS_values[j]))
+    #plt.close()
+    
+volumes = np.array(volumes)
+x_fs = []
+for v in volumes:
+    x_fs.append( [ x2[np.argmax(v)] , x2[-np.argmax(v[::-1])] ])
+                
+x_fs = np.array(x_fs)
+plt.plot(yS_values,x_fs[:,0],'o',label='first maximum value using Volume criterio',color='black')
+plt.plot(yS_values,x_fs[:,1],'o',label = 'second maximum value using Volume criterio',color='gray')
+plt.xlabel('y*')
+plt.ylabel('x_f')
+
+plt.plot(yS_values, yS_values/theta,'--',label = 'most precise measurement x*',color='red')
+plt.show()
+                
+
+
