@@ -1,0 +1,139 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def linear_(x, theta):
+    """
+    Linear function: y = theta * x.
+    
+    Parameters:
+    x (array or float): Input values.
+    theta (float): Slope parameter.
+    
+    Returns:
+    array or float: The result of the linear function.
+    """
+    return theta * x
+
+def linear_measure(x, theta, sigma):
+    """
+    Simulate measurements with noise added to the linear function.
+    
+    Parameters:
+    x (array or float): Input values.
+    theta (float): Slope parameter.
+    sigma (float): Standard deviation of the noise.
+    
+    Returns:
+    array or float: The noisy measurements.
+    """
+    try:
+        size = len(x)
+    except TypeError:
+        size = 1
+    return linear_(x, theta) + np.random.normal(loc=0, scale=np.sqrt(sigma), size=size)
+
+def sigma3_(x1_, x2_, x3_, sigma_, tau_):
+    """
+    Compute the sigma3 parameter based on inputs x1, x2, x3, sigma, and tau.
+    
+    Parameters:
+    x1_ (float): First input variable.
+    x2_ (float): Second input variable.
+    x3_ (float): Third input variable.
+    sigma_ (float): Noise parameter.
+    tau_ (float): Time constant parameter.
+    
+    Returns:
+    float: The computed sigma3 value.
+    """
+    return ((x1_**2 + x2_**2)/sigma_**2) + (x3_**2)/tau_**2
+
+def tau_a(tauS, yS, y, Delta):
+    """
+    Compute the adjusted time constant tau_a.
+    
+    Parameters:
+    tauS (float): Reference time constant.
+    yS (float): Reference y value.
+    y (array or float): Input y values.
+    Delta (float): Scaling factor.
+    
+    Returns:
+    array or float: The adjusted time constant values.
+    """
+    return tauS * np.exp((y - yS) ** 2 / (2 * Delta ** 2))
+
+def logB_(x1_, x2_, x3_, sigma_, tau_, sigma3_, y1_, y2_, y3_):
+    """
+    Compute the logarithm of the utility function B.
+    
+    Parameters:
+    x1_ (float): First input variable.
+    x2_ (float): Second input variable.
+    x3_ (float): Third input variable.
+    sigma_ (float): Noise parameter.
+    tau_ (float): Time constant parameter.
+    sigma3_ (float): Computed sigma3 value.
+    y1_ (float): First measured y value.
+    y2_ (float): Second measured y value.
+    y3_ (float): Third measured y value.
+    
+    Returns:
+    float: The computed logB value.
+    """
+    term1 = 0.5 * np.log(2 * np.pi / ((1 - 1/sigma3_) * (x1_**2 + x2_**2) / sigma_**2))
+    term2_nom = (x1_**2 + x2_**2) * ((1/sigma3_ - 1) * (x1_ * y1_ + x2_ * y2_) / sigma_ - (x3_ * y3_) / (2 * sigma3_ * tau_**2)) ** 2
+    term2_den = 0.5 * (1 - 1/sigma3_) * ((x1_**2 + x2_**2) / sigma_**2)
+    return term1 + term2_nom / term2_den
+
+# Define constants for the simulation
+x0 = 0.5
+x1 = 1
+xmax = 3
+sigma = 0.1 ** 2
+theta = 1
+tauS = sigma / 5  # tau star
+Delta = 0.2
+
+x2 = np.linspace(0, 3.1, 1000)
+
+yS_values = np.linspace(linear_(0, theta), linear_(3, theta), 5)
+for yS in yS_values:
+    tau = tau_a(tauS, yS, linear_(x2, theta), Delta)
+    sigma3 = sigma3_(x0, x1, x2, sigma, tau)
+    logB = np.zeros(len(x2))
+    for _ in range(100):
+        logB += logB_(x0, x1, x2, sigma, tau, sigma3, linear_measure(x0, theta, sigma),
+                      linear_measure(x1, theta, sigma), linear_measure(x2, theta, tau))
+    logB /= 100
+    
+    plt.plot(x2, np.abs(logB),label='mean logB values')
+    plt.xlabel('x_f')
+    plt.ylabel('Mean Utility function')
+    
+    plt.title('y*: {:.3f}'.format(yS))
+    plt.legend()
+    plt.savefig(f"logB_y_{yS:.3f}.png")
+    plt.close()
+
+# Compute and plot optimal experiment results
+max_x = []
+ySsss = np.linspace(linear_(0, theta), linear_(3, theta), 50)
+for yS in ySsss:
+    tau = tau_a(tauS, yS, linear_(x2, theta), Delta)
+    sigma3 = sigma3_(x0, x1, x2, sigma, tau)
+    logB = np.zeros(len(x2))
+    for _ in range(100):
+        logB += logB_(x0, x1, x2, sigma, tau, sigma3, linear_measure(x0, theta, sigma),
+                      linear_measure(x1, theta, sigma), linear_measure(x2, theta, tau))
+    logB /= 100
+    max_x.append(x2[np.argmax(np.abs	(logB))])
+    
+plt.plot(ySsss, max_x, label='Optimal Experiment')
+plt.xlabel('y*')
+plt.ylabel('x_f')
+plt.title('X_f using logB criterio')
+plt.plot(ySsss, ySsss / theta)
+plt.savefig('y_x_f.png')
+
+

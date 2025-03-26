@@ -1,0 +1,45 @@
+"""
+Problem 1: We investigate here in more detail the coi tossing problem. A coin is tossed N times and heads come up H times. Let theta denote the probability of heads in one flip. 
+a) compute analytically the posterior probability for thetat, for the case of a Jeffrys prior and a uniform prior on theta. 
+"""
+
+import numpy as np
+import scipy
+import matplotlib.pyplot as plt
+
+
+N = 1000
+p = 0.3
+
+
+
+
+
+class my_class():
+    def __init__(self,N,M,p):
+        self.N = N
+        self.p = p
+        self.M = M
+
+    def pseudo_data(self):
+        data = np.empty((self.M,self.N))
+        for i in range(self.M):
+            data[i] = np.rand(self.N)
+        data[data>self.p] = 1
+        data[data<=(1-self.p)] = 0
+        return data
+
+    def pdf(self,H,theta):
+        return scipy.stats.beta(self.H,self.N-self.H).pdf(theta)
+
+    def plot(self):
+        x = np.linspace(0,1,self.M)
+        y = self.pdf(int(np.random.rand()*self.N),x)
+        plt.plot(x,y)
+        plt.show()
+
+beta = my_class(10,10,0.1)
+        
+
+        
+

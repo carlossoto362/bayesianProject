@@ -1,0 +1,81 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def linear_(x,theta):
+    return theta*x
+
+def linear_measure(x,theta,sigma):
+    return linear_(x,theta) + np.random.normal(loc=0,scale=np.sqrt(sigma),size=len(x))
+
+def u1(x0,x1,sigma,tau,xmax):
+    return ((x1**2 + x0**2)/sigma + xmax/tau)
+
+def sigma1_(x1,x0,sigma):
+    return sigma/(x1**2 + x0**2)
+
+def m1_(x1,x0,y1,y0):
+    return (x1*y1 + x0*y0)/(x1**2 + x0**2)
+
+def u2(x0,x1,sigma,tau,xmax,sigmaB,y,m1,sigma1):
+    sqrt = (1+(xmax**2)*sigma/sigmaB)**(-1/2)
+    exp = np.exp(-(0.5)*( (m1**2/sigma1) + (y**2/sigmaB) - (m1/sigma1 + xmax*y/np.sqrt(sigmaB))**2/(1/sigma1 + xmax**2/sigmaB)   )    )
+    return ((x1**2 + x0**2)/sigma + (xmax/tau)*exp)
+
+def plot_u(x0_in,x1_in,sigma_in,tau_in,tauS_in,x_in,sigmaB_in,yS_in,m1_in,sigma1_in,theta_in):
+
+    ue_ = u1(x0_in,x1_in,sigma_in,tau_in,x_in)
+    xmaxe = np.argmax(ue_)
+    ua_ = u2(x0_in,x1_in,sigma_in,tauS_in,x_in,sigmaB_in,yS_in,m1_in,sigma1_in)
+    xmaxa = np.argmax(ua_)
+    
+    if np.max(ue_)>np.max(ua_):
+        xmax = x[xmaxe]
+    else:
+        xmax = x[xmaxa]
+
+    print(sigmaB_in,(theta_in*xmax - yS_in )**2/(2*np.log(tau_in/tauS_in)))
+    
+    ymin = np.min([np.min(ue_),np.min(ua_)])
+    ymax = np.max([np.max(ue_),np.max(ua_)])
+    plt.title('SigmaB: {}'.format(sigmaB_in))
+    plt.plot(x_in,ue_,label='ue',color='blue')
+    plt.plot(x_in,ua_,label='ua',color = 'green')
+    plt.vlines(xmax,ymin=ymin,ymax=ymax, linestyles = 'dashed',color='red',label='xmax')
+    plt.legend()
+    plt.show()
+
+x0 = 0.5
+x1=1
+xmax = 3
+sigma = 0.1 ** 2
+theta=1
+tau = 0.1
+tauS = sigma/5
+yS=1.5
+
+
+y0,y1 = linear_measure(np.array([x0,x1]),theta,sigma)
+
+for sigmaB_sqrt in np.linspace(0.1,2,20):
+    sigmaB=sigmaB_sqrt ** 2
+
+
+    #y0,y1=linear_(np.array([x0,x1]),sigma)
+
+    sigma1 =  sigma1_(x1,x0,sigma)
+    m1 = m1_(x1,x0,y1,y0)
+
+    #print(m1,theta)
+    #print(sigma1)
+
+    ue = u1(x0,x1,sigma,tau,xmax)
+    ua = u2(x0,x1,sigma,tauS,xmax,sigmaB,yS,m1,sigma1)
+
+
+    
+    x=np.linspace(0,3,1000)
+    plot_u(x0,x1,sigma,tau,tauS,x,sigmaB,yS,m1,sigma1,theta)
+
+
+
+
